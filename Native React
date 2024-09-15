@@ -1,0 +1,67 @@
+import React, { useEffect, useState } from 'react';
+import { ScrollView, Text, View, StyleSheet } from 'react-native';
+
+// Nome dos estudantes e suas médias finais
+const estudantesFixos = [
+    {
+        nome: "Ana Silva",
+        Portugues: 7.2,
+        Redacao: 8.1,
+        Matematica: 7.5,
+        Historia: 6.8,
+        Geografia: 8.0,
+        Ciencias: 7.9,
+        Ingles: 8.3,
+        EducacaoFisica: 7.7
+    }
+    // Adicione outros estudantes aqui...
+];
+
+export default function App() {
+    const [estudantes, setEstudantes] = useState([]);
+
+    useEffect(() => {
+        setEstudantes(estudantesFixos);
+    }, []);
+
+    return (
+        <ScrollView style={styles.container}>
+            {estudantes.map((estudante, index) => (
+                <View key={index} style={styles.card}>
+                    <Text style={styles.studentName}>{estudante.nome}</Text>
+                    {Object.keys(estudante).filter(key => key !== 'nome').map((disciplina, dIdx) => (
+                        <Text key={dIdx} style={styles.note}>
+                            {disciplina}: {estudante[disciplina]}
+                        </Text>
+                    ))}
+                </View>
+            ))}
+        </ScrollView>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        padding: 10,
+    },
+    card: {
+        backgroundColor: '#fff',
+        marginBottom: 20,
+        padding: 15,
+        borderRadius: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+        elevation: 5,
+    },
+    studentName: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 10,
+    },
+    note: {
+        fontSize: 14,
+        marginBottom: 2,
+    }
+});
