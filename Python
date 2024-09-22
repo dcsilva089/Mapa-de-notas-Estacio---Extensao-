@@ -1,0 +1,153 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from tkinter import Tk, Label, Button, Entry, StringVar, Toplevel, Scrollbar, Canvas, Frame, OptionMenu
+from tkinter import messagebox
+
+# Nome dos estudantes
+def generate_data(num_students=25):
+    students = [f'Aluno_{i+1}' for i in range(num_students)]
+    data = []
+    
+    # Disciplinas e trimestres
+    disciplines = ['Ciências', 'Português', 'Redação', 'Geografia', 'História', 'Inglês', 'Artes', 'Matemática', 'Ética']
+    trimesters = ['I Trimestre', 'II Trimestre', 'III Trimestre']
+    
+    for student in students:
+        student_data = {'Nome': student}
+        for discipline in disciplines:
+            for trimester in trimesters:
+                student_data[f'{discipline}_{trimester}_Teste'] = np.random.uniform(0, 2)
+                student_data[f'{discipline}_{trimester}_Projeto'] = np.random.uniform(0, 2)
+                student_data[f'{discipline}_{trimester}_Qualitativo'] = np.random.uniform(0, 1)
+                student_data[f'{discipline}_{trimester}_Prova'] = np.random.uniform(0, 5)
+                
+                # Calcular a nota final do trimestre
+                total_score = (student_data[f'{discipline}_{trimester}_Teste'] +
+                               student_data[f'{discipline}_{trimester}_Projeto'] +
+                               student_data[f'{discipline}_{trimester}_Qualitativo'] +
+                               student_data[f'{discipline}_{trimester}_Prova'])
+                student_data[f'{discipline}_{trimester}_Nota'] = total_score
+                
+                # Média do trimestre
+                student_data[f'{discipline}_{trimester}_Média'] = total_score / 10.0
+                
+        data.append(student_data)
+    
+    return pd.DataFrame(data)
+
+# Calcular média final e aprovações
+def calculate_final_grades(df):
+    for discipline in df.columns:
+        if 'Nota' in discipline:
+            # Calcular média final do aluno
+            student, trimester = discipline.split('_')[:2]
+            df[f'{student}_{trimester}_Média_Final'] = df.filter(like=f'{student}_{trimester}').filter(like='_Nota').sum(axis=1) / 3
+
+            # Aprovado/Reprovado
+            df[f'{student}_{trimester}_Situação'] = df[f'{student}_{trimester}_Média_Final'].apply(lambda x: 'Aprovado' if x >= 6 else 'Reprovado')
+    
+    return df
+
+# Funções auxiliares
+def get_top_bottom_performance(df, discipline):
+    top_students = df.loc[df.filter(like=discipline).filter(like='_Média_Final').idxmax()]
+    bottom_students = df.loc[df.filter(like=discipline).filter(like='_Média_Final').idxmin()]
+    
+    return top_students, bottom_students
+
+def get_individual_performance(df, student_name):
+    student_data = df[df['Nome'] == student_name]
+    if not student_data.empty:
+        best_scores = student_data.filter(like='_Média').max(axis=1)
+        worst_scores = student_data.filter(like='_Média').min(axis=1)
+        return best_scores, worst_scores
+    else:
+        return None, None
+
+def plot_performance(discipline, top_students, bottom_students):
+    # Prepare data for plotting
+    plt.figure(figsize=(12, 6))
+    
+    top_scores = top_students.filter(like=discipline).filter(like='_Média_Final')
+    bottom_scores = bottom_students.filter(like=discipline).filter(like='_Média_Final')
+
+    plt.plot(top_scores.index, top_scores.values, 'o-', label='Melhores Alunos', color='green')
+    plt.plot(bottom_scores.index, bottom_scores.values, 'o-', label='Piores Alunos', color='red')
+    
+    plt.title(f'Desempenho dos Melhores e Piores Alunos em {discipline}')
+    plt.xlabel('Aluno')
+    plt.ylabel('Média Final')
+    plt.xticks(rotation=90)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+def plot_individual_performance(student_name, best_scores, worst_scores):
+    plt.figure(figsize=(12, 6))
+    plt.bar(['Melhor Nota', 'Pior Nota'], [best_scores.iloc[0], worst_scores.iloc[0]], color=['green', 'red'])
+    plt.title(f'Melhor e Pior Nota do {student_name}')
+    plt.ylabel('Nota')
+    plt.tight_layout()
+    plt.show()
+
+def show_student_data(df, student_name):
+    student_data = df[df['Nome'] == student_name]
+    if not student_data.empty:
+        best_scores, worst_scores = get_individual_performance(df, student_name)
+        if best_scores is not None and worst_scores is not None:
+            plot_individual_performance(student_name, best_scores, worst_scores)
+        messagebox.showinfo("Dados do Aluno", student_data.to_string())
+    else:
+        messagebox.showwarning("Não Encontrado", "Aluno não encontrado!")
+
+def on_search_button_click(df, student_name_var, discipline_var):
+    student_name = student_name_var.get()
+    if student_name:
+        show_student_data(df, student_name)
+    else:
+        messagebox.showwarning("Entrada Inválida", "Por favor, selecione um aluno.")
+
+def on_plot_button_click(df, discipline_var):
+    discipline = discipline_var.get()
+    if discipline in df.columns:
+        top, bottom = get_top_bottom_performance(df, discipline)
+        plot_performance(discipline, top, bottom)
+    else:
+        messagebox.showwarning("Entrada Inválida", "Por favor, selecione uma disciplina válida.")
+
+def create_main_window():
+    df = generate_data()
+    df = calculate_final_grades(df)
+
+    # Criar a janela principal
+    root = Tk()
+    root.title("Sistema de Notas da Escola")
+    root.geometry("400x350")
+    root.config(bg="#f0f0f0")
+
+    # Layout
+    Label(root, text="Nome do Aluno:", bg="#f0f0f0").grid(row=0, column=0, padx=10, pady=10, sticky='e')
+    student_name_var = StringVar()
+    student_name_menu = OptionMenu(root, student_name_var, *[f'Aluno_{i+1}' for i in range(25)])
+    student_name_menu.grid(row=0, column=1, padx=10, pady=10)
+    search_button = Button(root, text="Buscar Aluno", command=lambda: on_search_button_click(df, student_name_var, discipline_var))
+    search_button.grid(row=0, column=2, padx=10, pady=10)
+
+    Label(root, text="Escolha uma Disciplina:", bg="#f0f0f0").grid(row=1, column=0, padx=10, pady=10, sticky='e')
+    discipline_var = StringVar()
+    disciplines = ['Ciências', 'Português', 'Redação', 'Geografia', 'História', 'Inglês', 'Artes', 'Matemática', 'Ética']
+    discipline_menu = OptionMenu(root, discipline_var, *disciplines)
+    discipline_menu.grid(row=1, column=1, padx=10, pady=10)
+    plot_button = Button(root, text="Mostrar Desempenho", command=lambda: on_plot_button_click(df, discipline_var))
+    plot_button.grid(row=1, column=2, padx=10, pady=10)
+
+    # Mensagens de ajuda
+    Label(root, text="Selecione um aluno e clique em 'Buscar Aluno' para ver os dados.", bg="#f0f0f0").grid(row=2, column=0, columnspan=3, padx=10, pady=5)
+    Label(root, text="Selecione uma disciplina e clique em 'Mostrar Desempenho' para visualizar o gráfico.", bg="#f0f0f0").grid(row=3, column=0, columnspan=3, padx=10, pady=5)
+
+    root.mainloop()
+
+if __name__ == "__main__":
+    create_main_window()
